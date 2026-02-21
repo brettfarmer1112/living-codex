@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:craig.chat)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pip install:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(ssh -i ~/.ssh/avax_validator_automation brettfarmer@207.237.250.18 'echo \"\"=== HARDWARE & RESOURCES ===\"\" && lscpu | grep -E \"\"Model name|CPU\\\\\\(s\\\\\\)|Thread\"\" && echo && free -h && echo && df -h && echo && uptime && echo && echo \"\"=== TOP MEMORY CONSUMERS ===\"\" && ps aux --sort=-%mem | head -20')",
+      "Bash(ssh:*)"
     ]
   }
 }
