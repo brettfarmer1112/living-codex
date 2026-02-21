@@ -1,0 +1,924 @@
+﻿Vision and Exp
+The Living Codex: Project Overview
+Vision: The Intelligence Officer for Your TTRPG Campaign
+The Living Codex is a headless, AI-powered Game Master assistant designed to solve the two biggest friction points in tabletop roleplaying games: Lore Amnesia and Note-Taking Fatigue.
+It is not a passive wiki or a generic "chat with PDF" tool. It is an active Intelligence Officer that lives inside your Discord server. It listens to your sessions, organizes your narrative assets, and protects your campaign secrets—all without breaking the immersion of the game.
+________________
+
+
+The Core Philosophy
+We are building for narrative-first games (Armour Astir, Delta Green, Monster of the Week), not just dungeon crawlers. This shapes every design decision:
+1. Assets Over Inventory: We track Factions, Intel, and Clues, not "10x Rations" or "Longswords."
+2. Text-First Immersion: No complex graphs or slow web portals. Interaction happens via lightning-fast text commands in Discord.
+3. Safety First: The system is Spoiler-Aware and Conflict-Averse. It never reveals a secret to a player, and it never overwrites a Game Master's manual notes.
+________________
+
+
+Key Features
+1. The "Silent" Recall (For Players)
+* Problem: Players forget NPC names or plot details, forcing them to interrupt the GM to ask, "Who is this guy again?"
+* Solution: A player types /codex check "Sky Pirates". The bot returns a private, ephemeral message visible only to them.[a]
+* Result: The player gets the context they need ("They are the mercenaries who betrayed you in Session 4") instantly, without stopping the flow of the game.
+2. The Spoiler Shield (For GMs)[b]
+* Problem: In mystery games like Delta Green, searching a database risks revealing the monster before the players find it.
+* Solution: The database strictly separates Public Knowledge (transcripts) from GM Secrets (private notes).
+   * Player View: "A dusty storage unit."
+   * GM View: "A dusty storage unit. SECRET: Contains a live alien."
+3. The Conflict Guard (Data Integrity)
+* Problem: Automated tools often destroy manual work. If a GM spends 2 hours writing a villain's backstory, an AI update shouldn't wipe it out.
+* Solution: Before syncing any update to Foundry VTT, the system calculates a cryptographic hash of the content. If the GM has manually edited a journal since the last sync, the AI aborts the write and flags it for review.
+4. The "Scribe" Pipeline (Automation)
+* Problem: Post-game burnout. GMs dread listening to 3 hours of audio to write summaries.
+* Solution:
+   1. Upload: Drop the session audio into a folder.
+   2. Transcribe & Extract: Gemini 1.5 Flash (Audio) and Pro (Logic) extract new NPCs, status changes, and plot points.
+   3. Review: The GM receives a "Mission Report" of proposed changes.[c][d]
+   4. Sync: With one click, the approved data is pushed to Foundry VTT.
+________________
+
+
+Technical Architecture
+The Living Codex is engineered to run on critical infrastructure with zero impact.
+* Host: Runs alongside a live Avalanche (AVAX) Validator Node.
+* Resource Cap: Hard-limited to 0.5 vCPU and 512MB RAM via Docker.
+* Zero Local Inference: No heavy machine learning models run on the server. All processing is offloaded to Google's Gemini API to ensure the validator node never misses a block.
+* Stack: Python (Asyncio), SQLite (Local Cache), Discord.py, Foundry MCP Bridge[e].
+Current Status
+* Phase: Ready for Development.
+* Next Milestone: Alpha Testing of the "Conflict Guard" logic.
+* Target Users: Armour Astir & Delta Green campaign groups.
+The Living Codex turns the burden of documentation into a strategic asset, letting the GM focus on the drama and the players focus on the action.
+
+
+Famous Podcast GM Final Review
+As the TTRPG Expert, I have reviewed V3.0. You have pivoted correctly towards Intel & Assets, which fits the Powered by the Apocalypse[f] (PbtA) and Delta Green[g][h] styles much better.
+
+
+However, you are over-engineering the solution.
+
+
+Complexity is the enemy of a long-term campaign. If the database schema becomes too rigid (mandatory source tagging, multiverse layers), the system will break when the GM inevitably improvises something that doesn't fit the box. When a tool breaks in the middle of a session, we stop using it forever.
+
+
+Here is my Final Review. It cuts the fat to save the system.
+
+
+________________
+
+
+Final Expert Review: The Living Codex V3.0
+Reviewer: The Podcasting GM Verdict: Approved with Critical Simplifications
+1. The Overall Vision
+The Living Codex must be a "Search Engine for the Fiction," not a "Wiki."
+
+
+* Wiki (Bad): Static, requires manual updating, distinct fields for every little thing.
+* Search Engine (Good): Flexible, messy, retrieves context based on relevance, not just exact matches.
+
+
+The goal is to let the Players and GM dump raw data (audio/text) into a bucket and retrieve Actionable Intelligence instantly. It does not need to perfectly model the multiverse; it just needs to find the right note at the right time.
+
+
+________________
+
+
+🟢 What Works (Keep This)
+1. The Pivot to "Assets" (Story 1.1)
+* Why: This is perfect for Armor Astir. "The 4th Fleet" is a narrative tool, not an inventory item. Treating it as an "Asset" with a status (Grounded/Active) aligns perfectly with the game mechanics. Keep this.
+2. The "Spoiler Wall" (Story 2.1)
+* Why: This is non-negotiable for Delta Green. The distinction between "Public Knowledge" and "GM Secret" is the only feature that makes this safe to use in a mystery game. If this fails, the app kills the fun.
+3. The Conflict Guard
+* Why: I will repeat this until I die: Never overwrite the GM[i]. This safety feature is the only reason I would install this on my server.[j]
+
+
+________________
+
+
+🔴 What Doesn't Work (The "Campaign Killers")
+1. The "Visual Clue Web" (Story 1.2)
+* The Problem: You are asking a text-based LLM (Gemini) to generate a visual node map in real-time inside Discord.
+* The Risk: Hallucination. The AI will draw connections that don't exist ("The Mayor is the Killer") because it misunderstood a joke. A misleading visual is worse than no visual.
+* The Fix: Cut the Visuals.
+* Return a List of Connections instead.
+* Format: "The Mayor hired The Janitor (Confidence: High). The Janitor was seen at The Crime Scene."
+* Why: Text is easier to debug and easier for the GM to verbally correct ("Actually, the AI is wrong, the Mayor didn't hire him").
+2. The "Multiverse" Tags (Story 2.2)
+* The Problem: Asking the GM to tag every single entity with World: Astir Prime vs World: Earth 2026 is tedious data entry. GMs hate data entry. They will forget to tag it, and then the search will fail.
+* The Fix: Contextual Search.
+* Don't make "World" a database column.
+* Just rely on the Session Context. If we are playing Monster of the Week, the AI should prioritize entities from recent MotW sessions.
+* Simplification: "Search results from Current Campaign are shown first. Results from Archived Campaigns are shown below."
+3. "Source Attribution" Granularity (Story 1.3)
+* The Problem: Tracking "Who said what" for every sentence is a massive token cost and processing overhead.[k]
+* The Fix: Session-Level Attribution.
+* Don't track every sentence. Just track the Session ID.
+* Output: "The Idol is safe to touch. (Source: Session 4 Summary)."[l]
+* Why: If I need to know who said it, I can look at the Session 4 summary. I don't need the database to store "Cultist Leader, Timestamp 14:02." That's too much.
+
+
+________________
+
+
+⚠️ Critical Items for the Final Draft
+The Designer must know these three things before writing the code:
+1. The "Discord Char-Limit" Trap
+Discord messages have a 2,000 character limit.
+
+
+* Requirement: The bot must summarize. It cannot dump a 5-paragraph bio.
+* Design Rule: "The Answer, The Context, The Link."
+1. The Answer: "Baron Vrax is your rival."
+2. The Context: "He burned the tavern."
+3. The Link: "[View Full Journal in Foundry]"[m]
+2. The "Proper Noun" Nightmare
+The AI will misspell names. "Vrax" becomes "Racks." "Astir" becomes "Aster."
+
+
+* Requirement: The system needs a "Did You Mean?" fuzzy search.
+* Design Rule: If I search /codex search Racks, it should find "Lord Vrax" without me typing it perfectly. If it requires perfect spelling, players will stop using it.
+3. The "Permissions" Default
+* Requirement: By default, everything is GM Only.
+* Why: It is better for the players to see nothing than for them to see a spoiler. The GM should explicitly "Publish" info to the players (or the AI assumes "Public" only if it was spoken by a Player in the transcript).[n]
+
+
+________________
+
+
+Final Vision Statement
+"The Living Codex is a low-friction assistant that listens to the game and remembers the details so we can focus on the drama. It is text-first, spoiler-safe, and never hallucinates connections that don't exist. It prioritizes the GM's manual notes above all else."
+
+
+Go build that. It's simple, it's safe, and it won't break when the campaign gets weird.
+
+
+Playtesting Experience
+This is the Alpha Field Guide for your testing team. It reflects the pivotal shift from "Inventory Management" to "Intel & Assets" and sets the expectations for a text-first, spoiler-safe experience.
+________________
+
+
+Alpha Field Guide: The Living Codex
+For: The Alpha Squad (The Aces, The Agents, and The Architect)
+Version: 2.0 (The "Intelligence Officer" Build)
+👋 Welcome to the Field
+You are testing The Living Codex, an AI-powered Intelligence Officer for our campaign.
+What this IS:
+* A tool to track Assets (The 4th Fleet), Factions (The Authority), and Intel (The Green Box).
+* A "Spoiler-Safe" search engine that knows the difference between what the Players know and what the GM knows.
+* A text-first tool designed to be faster than opening a wiki.
+What this is NOT:
+* An Inventory Manager (We don't care about "10x Rations").
+* A Visual Graph Generator (No complex node maps, just clear text).
+* A Creative Writer (It organizes our lore; it doesn't invent new lore).
+________________
+
+
+🎯 The "Vibe" Targets
+We are testing for feelings, not just bugs. Please rate us on these three emotions:
+1. The "Ace Pilot" Feeling (For Players)
+The Goal: You are a competent professional. You know your assets and allies without asking the GM.
+* Success: The GM describes a raid. You type /codex check "Sky Pirates". The bot replies: "Status: Grounded / Needs Repairs." You immediately pivot the plan: "They can't fly, but they can man the turrets."
+* Failure: You have to ask the GM, "Wait, do we still have those pirates?" (The Codex failed to give you agency).
+2. The "Handler" Feeling (For the GM)
+The Goal: You are the Keeper of Secrets. The system protects the mystery.
+* Success: A player asks about "The Green Box." You check it first. The bot shows you: "Public: Storage Unit. SECRET: Contains a Shoggoth." You confidently describe the dusty furniture, knowing exactly what not to say.
+* Failure: The bot reveals the monster to the players, or you feel unsafe using the tool because you think it might leak.
+3. The "Lazy Genius" Feeling (Post-Game)
+The Goal: The boring work just... happens.
+* Success: You upload the session audio. The bot drafts a report: "Updated 'The 4th Fleet' status to 'Grounded'." You click Approve. Done.
+* Failure: The bot tries to overwrite a manual note you wrote in Foundry, forcing you to fight the system to keep your data.
+________________
+
+
+🧪 Your Mission Objectives
+Mission 1: The "Fat Finger" Test (Usability)
+* Scenario: You are in the middle of combat/high-tension RP. You need info fast.
+* Action: Type a query quickly and misspell it on purpose. (e.g., /codex check "Vrecks" instead of "Vrax").
+* Assess: Did the "Fuzzy Search" catch you?
+   * Pass: "Did you mean: Baron Vrax?"
+   * Fail: "No results found." (This breaks immersion).
+Mission 2: The "Asset" Audit (Armour Astir Context)
+* Scenario: Before a Sortie, check an ally.
+* Action: /codex check [Faction Name]
+* Assess: Does the output follow the 3-Bullet Rule?
+   * Status: (Active/Wounded/Grounded)
+   * Context: (Why do we care?)
+   * Source: (Which session?)
+   * Note: If it gives you a wall of text, mark it as a Fail.
+Mission 3: The "Spoiler" Wall (Delta Green Context)
+* Scenario: Choose an entity that has a secret (e.g., an NPC who is secretly a cultist).
+* Action:
+   * Player types /codex check [Name].
+   * GM types /codex check [Name].[o]
+* Assess: Compare screenshots.
+   * Pass: The Player sees "A helpful librarian." The GM sees "A helpful librarian + SECRET: Cult Leader."
+   * Fail: The Player sees the secret. (CRITICAL FAIL).
+Mission 4: The "Conflict" Guard (GM Only)
+* Scenario: Manually edit a Journal in Foundry VTT (change a description). Then, upload a session audio where the AI might try to update that same entity.
+* Assess: Does the system respect your manual edit?
+   * Pass: "Conflict detected. Skipping sync for this entity."
+   * Fail: The AI overwrites your manual work.[p]
+________________
+
+
+🚫 What to Ignore
+* Visuals: Do not report "It didn't make a cool web graph." We cut that feature to ensure accuracy.
+* Loot: Do not report "It didn't track my 5 gold pieces." This is intentional.
+📝 How to Report Feedback
+We want "Vibes" over formal tickets.
+* "Agency Moment": "I felt cool when I looked up the 4th Fleet and saved the day."
+* "Trust Breaker": "I didn't trust the bot to keep the alien secret, so I didn't use it."
+* "Friction": "The response was too long, I didn't read it."
+Good luck out there.
+
+
+
+
+User Journeys Final Version
+User Journey Map: The Living Codex (vFinal)
+Project: Headless GM Assistant for Discord & Foundry VTT
+Design Principle: "The Intelligence Officer"[q]
+Core Constraints: Text-First, Spoiler-Safe, Conflict-Aware.
+________________
+
+
+1. The Core Loop (High Level)
+The system operates in three distinct phases matching the lifecycle of a TTRPG session.
+1. The Live Operation (During Play): Low-latency, read-only lookups. Players check "Assets"; GMs check "Secrets."
+2. The Debrief (Post-Game): High-latency processing. Audio upload, transcription, and "Diff" generation.
+3. The Sync (Between Games): The "Safe Commit." The GM approves changes, and the system pushes to Foundry VTT only if no conflicts exist.
+________________
+
+
+2. Detailed User Journeys
+Journey A: The "Asset Check" (Player)
+Context: Armor Astir / The Sortie. The pressure is high. The player needs to know if a specific ally is available.
+1. Trigger: The GM asks, "The Authority is launching a raid. What do you do?"
+2. Action: The Player types /codex check "Sky Pirates" (or even misspelled as "Ski Pirates").
+3. System Logic:
+   * Fuzzy Search: Detects match for "The 4th Fleet[r]" (Aliases: Sky Pirates).
+   * Permission Check: Is this entity Public? Yes.
+   * Formatting: Truncates bio to <300 chars (Discord Limit).
+4. UI Output (Ephemeral Discord Message[s]):
+The 4th Fleet (Tier II Asset)
+🟢 Status: Active / Airborne
+💬 Last Intel: "Promised to cover the eastern flank." (Session 12 Summary)
+🔗 [View in Foundry]
+5. Outcome: The Player shouts, "The Pirates are covering the East! We push West!" (Zero friction, no "Wiki pause").
+Journey B: The "Spoiler Check" (GM)
+Context: Delta Green / The Mystery. The Players are asking dangerous questions.
+   1. Trigger: A player asks, "Does the Green Box have a basement?"
+   2. Action: The GM secretly types /codex gm[t] "Green Box".
+   3. System Logic:
+   * Identity Check: Verifies User is GM.
+   * Retrieval: Pulls Public Data (Session Logs) AND Secret Data (GM Notes).
+   4. UI Output (Private Discord Message):
+Location: A. Alfaro's Storage Unit
+📢 Public: Rented in 1995. Contains dusty furniture.
+🔒 SECRET: Trapdoor under the rug leads to a sub-basement.
+⚠️ Entity: The Shoggoth is dormant here.
+   5. Outcome: The GM narrates confidentially, knowing exactly what to reveal and what to hold back.[u]
+Journey C: The "Safe Sync" (The Scribe)
+Context: Post-Session. The GM is tired but needs to log the session.
+      1. Trigger: GM drags session_24.mp3 into the Codex Watcher Folder.[v]
+      2. System Process (The "Black Box"):
+      * Transcribes Audio (Gemini Flash).
+      * Extracts Entity Updates[w] (Gemini Pro).
+      * The Conflict Guard: Checks Foundry VTT API. Did the GM manually edit "Lord Vrax" since the last sync?
+      3. Action: GM receives a "Mission Report" in Discord.[x]
+      4. UI Output:
+Session 24 Processed
+🆕 New Entities: 3 (Drafted)
+📝 Updates: 5 (Ready to Sync)
+🛑 CONFLICTS: 1 (Skipped)
+         * Lord Vrax: Manual edit detected in Foundry. Sync Aborted for this entity.
+         5. Outcome: The GM clicks "Approve All." The database updates. The "Lord Vrax" manual note is preserved, saving the campaign from data loss.
+________________
+
+
+3. UI/UX Specifications (For Engineering)
+3.1 The "3-Bullet" Rule (Discord Output)
+To prevent "Wall of Text" fatigue, all Discord embeds must strictly follow this format:
+         1. Header: Name + Status Emoji (🟢/🔴/💀).
+         2. Context: The single most relevant fact or relationship.[y]
+         3. Source: "According to [Session X]."
+3.2 The "Fuzzy" Threshold
+         * Problem: Players will type "Vrax", "Vrecks", or "The Baron."
+         * Spec: The search query must use a vector similarity threshold of 0.8[z] (or equivalent fuzzy logic).
+         * Fallback: If confidence is low (<0.7), return a "Did you mean?" list:
+         * Did you mean: Baron Vrax?
+         * Did you mean: The Barracks?
+3.3 The "Spoiler Wall" Architecture
+The database schema must explicitly separate Public vs Private fields.
+         * description_public: Sourced from Session Transcripts (What was said aloud).
+         * description_private: Sourced from GM Notes or Foundry GM Layer.
+         * Default State: If the source is unknown, default to Private.
+________________
+
+
+4. Edge Cases (Failure States)
+         * The "Hallucination" Trap[aa]:
+         * Scenario: The AI thinks "The King is dead" because a player said "I wish the King was dead."
+         * Safety: The GM sees this in the Mission Report (Journey C) as a "Proposed Update." The GM rejects it. The AI never writes to the DB without approval.
+         * The "Foundry is Asleep" State:
+         * Scenario: The Forge server is offline/sleeping.
+         * Safety: The /codex commands read from the Local Cache (SQLite). The system does not try to wake the Forge server for simple lookups. Sync operations queue until the server is awake.
+________________
+
+
+5. Final Design Handover Checklist
+         * [ ] No Visuals: Removed all requirements for node-graph generation.
+         * [ ] Assets over Loot: Schema emphasizes "Assets/Factions" over "Inventory Items."
+         * [ ] Conflict Guard: logic is P0 (Priority Zero).
+         * [ ] Discord Limits: Output formatter is strictly capped at 2,000 characters.
+This document represents the final blueprint. It is scoped, safe, and designed for the specific reality of a multi-system, narrative-heavy campaign. Ready for Engineering.
+
+
+QA Manager Tests
+This is the Master QA Test Plan (v2.0). It supersedes all previous drafts.
+As QA Manager, I have audited the changes. The shift to "Text-First" and "Asset Management" simplifies the rendering logic but increases the pressure on Natural Language Processing (NLP) accuracy and Search Heuristics.
+We are no longer testing for "pretty graphs"; we are testing for semantic accuracy and informational hierarchy.
+________________
+
+
+QA Master Test Plan: The Living Codex (v2.0)
+Project: Headless GM Assistant (Assets & Intel Build)
+Test Strategy: Risk-Based, Heuristic, & Destructive
+Environment: Staging (Dockerized) $\rightarrow$ Production (AVAX Node Replica)
+________________
+
+
+1. Risk Assessment & Priorities
+Updated based on "Text-First" and "Spoiler Wall" architecture.
+Risk Level
+	Component
+	Failure Scenario
+	Impact
+	CRITICAL
+	Conflict Guard
+	The AI overwrites a GM's manual Foundry entry.
+	Data Loss. Immediate loss of trust.
+	CRITICAL
+	Spoiler Shield
+	A player searches for "The Green Box" and gets the "Private" GM notes.
+	Campaign Ruined. Mystery broken.
+	HIGH
+	Fuzzy Search
+	User types "Vrecks" (meant Vrax) and gets "No Results" or the wrong entity.
+	Friction. User abandons tool.
+	HIGH
+	AVAX Safety
+	Container spikes >0.5 vCPU during transcription.[ab]
+	Financial Loss. Validator misses blocks.
+	MEDIUM
+	Formatting
+	Output exceeds 2,000 chars or lacks the "3-Bullet" structure.
+	Usability Fail. Players won't read it.
+	________________
+
+
+2. Functional Test Suites
+Suite A: The Interface (Search & Semantics)
+Focus: Heuristics, Fuzzy Logic, and Discord Constraints.
+T1: The "Three-Bullet" Formatter
+         * Objective: Verify the AI summarizes complex data into the required format.
+         * Input: Database entity with a 5,000-character description.
+         * Action: User types /codex check [Entity].
+         * Expected Result:
+         1. Discord Embed appears.
+         2. Content Check: Must contain exactly:
+         * Status Line: (e.g., "🟢 Active").
+         * Context Line: (e.g., "The mercenaries who betrayed you.").
+         * Source Line: (e.g., "Session 4").
+         3. Character Count: Total embed length must be < 500 characters (Aggressive summarization).
+         * Fail: Returns a paragraph block or truncates mid-sentence.
+T2: The "Fuzzy" Boundary Test
+         * Objective: Verify Levenshtein thresholds (0.7 vs 0.4).
+         * Setup: Entity "Baron Vrax" exists.
+         * Sub-Test 2.1 (High Confidence):
+         * Input: /codex check "Baron Vrax" (Exact) $\rightarrow$ Pass: Returns Embed.
+         * Input: /codex check "Baron Vrecks" (Close) $\rightarrow$ Pass: Returns Embed.
+         * Sub-Test 2.2 (Ambiguous - The "Select Menu"):
+         * Input: /codex check "Baron" (Could be Baron Vrax or Baroness Kora).
+         * Expected: Returns Discord Select Menu (Dropdown).
+         * Option 1: Baron Vrax
+         * Option 2: Baroness Kora
+         * Option 3: Cancel
+         * Sub-Test 2.3 (Noise):
+         * Input: /codex check "Banana" $\rightarrow$ Pass: "No results found."
+________________
+
+
+Suite B: The Spoiler Shield (Security)
+Focus: Data Separation logic.
+T3: The Identity Check
+         * Objective: Ensure "Private" fields never leak to non-GM users.
+         * Setup:
+         * Entity: "The Green Box"
+         * description_public: "A dusty storage unit."
+         * description_private: "Contains a Shoggoth."
+         * GM_USER_ID: 12345
+         * Sub-Test 3.1 (Player View):
+         * Actor: UserID 67890 (Player).
+         * Action: /codex check "Green Box".
+         * Expected: Embed contains "A dusty storage unit." Does NOT contain "Shoggoth" or "Secret".
+         * Sub-Test 3.2 (GM View):
+         * Actor: UserID 12345 (GM).
+         * Action: /codex check "Green Box".
+         * Expected: Embed contains "A dusty storage unit" AND a field labeled 🔒 SECRET with "Contains a Shoggoth."
+________________
+
+
+Suite C: The Guard (Sync & Conflict)
+Focus: Destructive testing of the Sync logic.
+T4: The "Race Condition" (Manual vs. AI)
+         * Objective: The "P0" Test.
+         * Setup:
+         * Sync Entity "Vrax" to Foundry. Hash: ABC.
+         * Manual Action: Log into Foundry VTT. Edit "Vrax" Journal. New Hash: XYZ.
+         * AI Action: Process a new session where "Vrax" is mentioned. AI generates update proposal.
+         * Action: GM approves update.
+         * Expected Result:
+         * System calculates Foundry_Hash (XYZ) != DB_Last_Synced (ABC).
+         * Action: System ABORTS write to Foundry.
+         * Output: Discord Message: "⚠️ Conflict detected for 'Vrax'. Manual edit found. Sync skipped."
+         * Verify: Check Foundry Journal. Content must still be the Manual Edit.
+T5: The "Offline" Fallback
+         * Objective: Verify system stability when external dependencies fail.
+         * Setup: Disconnect The Forge (simulate downtime).
+         * Action: /codex check "Vrax".
+         * Expected: Returns result from local SQLite cache. No crash. No "Thinking..." timeout.
+________________
+
+
+Suite D: Performance (AVAX Constraints)
+Focus: Resource Capping.
+T6: The "Docker Strangle"
+         * Objective: Verify deploy.resources.limits are effective.
+         * Action:
+         * Upload 3-hour audio file.
+         * Simultaneously execute a script sending 50 search queries per second.
+         * Metric:
+         * CPU: Must flatline at 50% of 1 vCPU.
+         * RAM: Must flatline at 512MB.
+         * Validator Health: avalanchego process latency must not increase >5ms.
+________________
+
+
+3. Automation Strategy (Pytest)
+We will use pytest with pytest-asyncio for the Discord logic and mock for the Foundry API.
+Python
+# test_spoiler_shield.py
+
+
+import pytest
+from codex.services import search_service
+
+
+@pytest.mark.asyncio
+async def test_player_cannot_see_secrets():
+    """
+    CRITICAL: Verify non-GM users get sanitized output.
+    """
+    # 1. Setup Mock Data
+    entity = {
+        "name": "Green Box",
+        "public": "Dusty Unit",
+        "private": "Aliens inside"
+    }
+    
+    # 2. Simulate Player Query (ID does not match GM_ID)
+    result = await search_service.query(user_id=99999, term="Green Box")
+    
+    # 3. Assertions
+    assert "Dusty Unit" in result.embed_text
+    assert "Aliens inside" not in result.embed_text
+    assert "SECRET" not in result.embed_text
+
+
+@pytest.mark.asyncio
+async def test_gm_sees_secrets():
+    """
+    CRITICAL: Verify GM users get full output.
+    """
+    # Simulate GM Query (ID matches GM_ID)
+    result = await search_service.query(user_id=12345, term="Green Box")
+    
+    assert "Dusty Unit" in result.embed_text
+    assert "Aliens inside" in result.embed_text
+
+
+________________
+
+
+4. Entry & Exit Criteria
+Entry Criteria (Ready for Testing)
+         1. Docker container builds.
+         2. codex.db schema includes description_public and description_private.
+         3. Fuzzy Search library (rapidfuzz or similar) is implemented.
+Exit Criteria (Ready for Alpha Release)
+         1. 100% Pass on T3 (Spoiler Shield). No leaks allowed.
+         2. 100% Pass on T4 (Conflict Guard). No data overwrites.
+         3. Usability Pass: "Did you mean?" menu triggers correctly for misspelled inputs (T2).
+         4. Performance: CPU usage confirmed < 50% under load.
+________________
+
+
+Signed:
+QA Manager
+
+
+
+
+Final Product Reqs
+Product Requirements Document (PRD)
+Product: The Living Codex (Headless GM Assistant)
+Version: 1.0 (Final Engineering Draft)
+Status: READY FOR DEVELOPMENT
+Owner: Senior Product Manager
+Date: February 7, 2026
+________________
+
+
+1. Executive Summary
+The Living Codex is a text-first, AI-powered archivist designed to function as an "Intelligence Officer" for TTRPG campaigns (specifically Armour Astir, Delta Green, and Monster of the Week).
+It operates as a Discord Bot backed by a local SQLite database and Google’s Gemini API. It ingests session audio and raw notes, structures them into "Assets" and "Intel," and syncs this data to Foundry VTT.[ac]
+Critical Constraint: The system hosts on a live Avalanche (AVAX) Validator Node. It must operate with negligible resource consumption (0.5 vCPU cap) to prevent validation downtime. No local ML inference is permitted.
+________________
+
+
+2. Strategic Principles
+         1. Asset Over Inventory: We track Intel, Factions, and Clues—not just "Loot."
+         2. Spoiler Safety: The system strictly separates Public Knowledge (Session Transcripts) from GM Secrets (Private Notes).
+         3. Conflict Guard: The AI is a scribe, not an author. It must never overwrite a manual edit made by the GM in Foundry VTT.
+         4. Text-First: No complex visual node generation. Output must be concise, text-based, and mobile-friendly.
+________________
+
+
+3. System Architecture
+3.1 Tech Stack
+         * Controller: Python 3.10+ (Asyncio/Aiohttp).
+         * Database: SQLite (codex.db).
+         * Interface: Discord Interaction API (discord.py).
+         * VTT Integration: Foundry VTT via MCP Bridge (External Module).
+         * AI Provider:
+         * Gemini 1.5 Flash: Transcription & Real-time Chat (Low Latency).
+         * Gemini 1.5 Pro: Entity Extraction & Logic (High Reasoning).[ad]
+3.2 Deployment Environment (The AVAX Constraint)
+         * Containerization: Docker.
+         * Resource Limits:
+         * cpus: '0.50' (Hard cap).
+         * memory: '512M' (Hard cap).
+         * Process Priority: nice -n 10 (Low priority).
+________________
+
+
+4. Functional Requirements
+FR1: The "Intelligence Officer" (Discord Interface)
+         * Command: /codex check [query]
+         * Actor: Player or GM.
+         * Logic:
+         1. Fuzzy Search: Calculate Levenshtein distance on entities.name and aliases. Threshold: 0.7.
+         2. Permission Filter:
+         * If User != GM: Return description_public only.
+         * If User == GM: Return description_public + description_private.
+         3. Format: Ephemeral Embed (Visible only to requester).
+         * Output Constraints: Max 2,000 characters. Must use the "3-Bullet Rule":
+         1. Status: (e.g., "Active," "Grounded," "Deceased").
+         2. Context: The most relevant relationship or fact.
+         3. Source: Session citation (e.g., "Session 12").
+         * Command: /codex add [name] [description]
+         * Actor: GM Only.
+         * Logic: Creates a row in entities with status='Draft'.
+         * Latency: < 1 second.
+FR2: The "Scribe" Pipeline (Ingestion)
+         * Trigger: File upload to watched directory (/inputs/*.mp3).
+         * Step 1: Transcription (API Only)
+         * Send audio to Gemini 1.5 Flash.
+         * Prompt: "Transcribe. Identify speakers. Output JSON."
+         * Constraint: DO NOT use local Whisper.
+         * Step 2: Entity Extraction
+         * Send Transcript + Current Entity List to Gemini 1.5 Pro.
+         * Prompt: "Identify Assets, Factions, and NPCs. Extract status changes. Flag 'Secrets' vs 'Public Events'."
+         * Step 3: Diff Generation
+         * Output a staged_changes.json file.
+         * Constraint: System stops here. It waits for human approval via Discord Button or CLI.
+FR3: The "Conflict Guard" (Sync Logic)
+         * Trigger: GM approves staged_changes.json.
+         * Algorithm:
+         1. For each entity E in the update list:
+         2. Fetch E_foundry from Foundry VTT API.
+         3. Calculate Hash(E_foundry.content).
+         4. Compare with DB.last_synced_hash.
+         5. IF Match: Safe to update. Push new content to Foundry. Update DB.last_synced_hash.
+         6. IF Mismatch: STOP. Log error: "Conflict detected for [Entity Name]." Do not update Foundry.
+         7. IF New: Create Journal Entry.
+________________
+
+
+5. Data Model (SQLite Schema)
+This schema supports the "Asset" focus and "Spoiler Safety."
+SQL
+-- Core Entity Table
+CREATE TABLE entities (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT UNIQUE NOT NULL,    -- Internal ID
+    name TEXT NOT NULL,
+    type TEXT CHECK(type IN ('Asset', 'Faction', 'NPC', 'Location', 'Clue')),
+    
+    -- Status Tracking (Crucial for Assets)
+    status_label TEXT,            -- e.g., "Grounded", "Wounded", "Active"
+    status_color TEXT,            -- e.g., "Red", "Green" (For Discord Embeds)
+    
+    -- The Spoiler Wall
+    description_public TEXT,      -- Sourced from transcripts
+    description_private TEXT,     -- Sourced from GM Notes
+    
+    -- Conflict Guard
+    foundry_id TEXT,              -- UUID in The Forge
+    foundry_hash TEXT,            -- SHA256 of last known Foundry content
+    
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- Search Aliases (Fuzzy Matching)
+CREATE TABLE aliases (
+    alias TEXT,
+    entity_id INTEGER,
+    FOREIGN KEY(entity_id) REFERENCES entities(id)
+);
+
+
+-- Relationships (The "Web")
+CREATE TABLE relationships (
+    source_id INTEGER,
+    target_id INTEGER,
+    rel_type TEXT,                -- 'Ally', 'Rival', 'Owner', 'Location'
+    citation TEXT,                -- 'Session 4'
+    FOREIGN KEY(source_id) REFERENCES entities(id),
+    FOREIGN KEY(target_id) REFERENCES entities(id)
+);
+
+
+________________
+
+
+6. Non-Functional Requirements (NFRs)
+6.1 Performance & Safety (P0)
+         * CPU Threshold: If the Docker container exceeds 0.6 vCPU for >10 seconds, the orchestrator must kill the process.
+         * Memory Threshold: Process must hard-crash if it attempts to allocate >600MB RAM.
+         * Failover: If The Forge is offline, the Discord Bot must continue to serve read-only queries from the local SQLite cache.
+6.2 Security
+         * API Keys: Injected via .env only.
+         * Data Privacy: "Private" descriptions must never be sent to a Discord UserID that does not match the configured GM_USER_ID.
+6.3 Reliability
+         * Backup: Daily Cron job rsyncs codex.db to external storage (S3/Drive).
+         * Rate Limits: The bot must respect Discord's 50 requests/second limit and implement exponential backoff.
+________________
+
+
+7. User Experience Guidelines
+7.1 The "Did You Mean?" Protocol
+If a search confidence score is between 0.4 and 0.7:
+         * Do Not return a full embed.
+         * Do return a select menu: "Found 3 possible matches for 'Vrecks': 1. Baron Vrax, 2. The Wrecks, 3. Cancel."
+7.2 The "Visual" Ban
+         * Explicit Constraint: Do not attempt to generate ASCII art or image-based node graphs.
+         * Alternative: Use Listing Format.
+         * Instead of: A $\rightarrow$ B
+         * Use: "Connected to: Baron Vrax (Rival)."
+________________
+
+
+8. Development Roadmap
+         * Phase 1: The Foundation (Week 1)
+         * Docker setup with strict resource limits.
+         * SQLite Schema implementation.
+         * Basic Discord Bot connection (/ping).
+         * Phase 2: The Scribe (Week 2)
+         * Gemini Flash/Pro integration.
+         * Audio-to-JSON pipeline.
+         * Milestone: Successful ingestion of a 5-minute test audio file.
+         * Phase 3: The Guard (Week 3)
+         * Foundry MCP Bridge connection.
+         * Conflict Guard Logic implementation (Test Suite T4).
+         * Milestone: System refuses to overwrite a manually edited Journal.
+         * Phase 4: The Intelligence Officer (Week 4)
+         * Full Discord Command suite (/codex check, /codex gm).
+         * Fuzzy search implementation.
+         * Alpha Release to testing group.
+
+
+Future Ideas
+Go wild put stuff in here:
+         * Lore builder module
+         * Character builder module
+         * GM asset assistant
+         * Sec/Arch/PII Review
+Systems Architecture Report: The Living Codex (Final Release)
+Project: Headless GM Assistant & Intelligence Officer
+Target Environment: Avalanche (AVAX) Validator Node (Production)
+Version: 2.0 (Hybrid Storage Model)
+Date: February 7, 2026
+Author: Systems Architect
+________________
+
+
+1. Executive Summary
+The Living Codex is a low-latency, AI-powered archivist designed to run alongside a mission-critical blockchain validator without compromising network performance.
+It utilizes a Hybrid Storage Architecture that leverages Google Drive for secure transport (Air Gap), a local 21TB HDD for cold storage, and the system NVMe for high-speed database queries. All heavy compute is offloaded to Google's Gemini API, ensuring the local CPU footprint remains negligible (<0.5 vCPU).
+Core Constraint: The Avalanche Validator process (avalanchego) has absolute priority. The Codex operates as a background "scavenger" process with strict resource throttling.
+________________
+
+
+2. High-Level Architecture
+The "Air Gapped" Data Flow
+The system avoids opening inbound firewall ports by using a Polling (Pull) methodology.
+         1. Ingestion (The Dead Drop): GM uploads session audio to Google Drive.
+         2. Transport (The Pull): Server polls Drive via rclone, moves audio to the Local 21TB HDD.
+         3. Processing (The Brain): Python service streams audio from HDD to Gemini 1.5 Flash API.
+         4. Database (The Memory): Structured data (Assets, Intel) is written to SQLite on the NVMe SSD.
+         5. Interface (The Voice): Discord Bot queries SQLite to serve Players/GM in real-time.
+         6. Sync (The Hand): Validated updates are pushed to Foundry VTT via the MCP Bridge.
+________________
+
+
+3. Infrastructure & Hardware Specs
+3.1 Resource Partitioning
+To protect the Validator's block verification performance, the Codex is containerized with hard limits.
+         * Compute: Docker container capped at 0.5 vCPU.
+         * Memory: Docker container capped at 512 MB RAM.
+         * Process Priority:
+         * CPU: nice -n 19 (Lowest priority).
+         * Disk I/O: ionice -c 3 (Idle priority).
+         * Network: Egress bandwidth limited to 5 Mbps to preserve gossip bandwidth.
+3.2 Storage Hierarchy
+We utilize the specific hardware available to maximize efficiency and safety.
+Data Type
+	Storage Location
+	Rationale
+	Est. 1-Year Size
+	Raw Audio
+	21TB Ext. HDD
+	High capacity, low speed. Keeps bulky files off the NVMe.
+	~7 GB
+	Live Database
+	System NVMe
+	Low latency (<1ms) for instant Discord responses.
+	< 100 MB
+	Backups
+	Google Drive
+	Off-site disaster recovery.
+	~100 MB
+	Transport
+	Google Drive
+	Secure ingestion without open ports.
+	Transient
+	________________
+
+
+4. Security & Data Integrity
+4.1 The "Conflict Guard" (Data Safety)
+The system acts as a Scribe, not an Author. It must never overwrite manual work.
+         * Mechanism: Optimistic Concurrency Control (OCC).
+         * Protocol:
+         1. Fetch Journal from Foundry.
+         2. Calculate SHA-256 Hash of current content.
+         3. Compare with DB.last_synced_hash.
+         4. IF Mismatch: Abort Sync. Log "Conflict Detected."
+         5. IF Match: Proceed with update.
+4.2 The "Spoiler Shield" (Game Integrity)
+The database schema explicitly segregates knowledge to protect campaign mysteries (e.g., Delta Green).
+         * Field: description_public (Sourced from Session Audio).
+         * Field: description_private (Sourced from GM Notes).
+         * Access Control: The Discord Bot checks User_ID. Only the GM receives the private field.
+4.3 PII & Privacy
+         * Redaction: The prompt to Gemini Pro includes a directive to anonymize real-world names in the structured output.
+         * Retention: Raw transcripts are processed in memory or ephemeral /tmp storage and deleted immediately after extraction. Only the structured "Intel" is retained in the DB.
+________________
+
+
+5. Application Logic (The "Scribe" Pipeline)
+Phase A: Ingest (The Cron Job)
+Runs every 10 minutes.
+Bash
+# Pulls from Drive to HDD, limiting bandwidth
+rclone move gdrive:/Codex_Input /mnt/hdd/codex_raw/ --bwlimit 5M
+
+
+Phase B: Process (The Python Service)
+Triggered when new files land in /mnt/hdd.
+         1. Read: Stream MP3 from HDD.
+         2. Transcribe: Send to Gemini 1.5 Flash.
+         3. Extract: Send Transcript to Gemini 1.5 Pro (Context: "Extract Assets & Intel").
+         4. Diff: Generate a staged_changes.json file.
+         5. Wait: Send "Mission Report" to Discord. Wait for GM Approval.
+Phase C: Commit (The Sync)
+Triggered by GM Approval.
+         1. Write: Update codex.db (NVMe).
+         2. Push: Call Foundry API via MCP Bridge (subject to Conflict Guard).
+         3. Backup: Snapshot DB and push to Google Drive.
+________________
+
+
+6. Implementation Configuration
+6.1 Docker Compose (Resource Limits)
+YAML
+services:
+  codex:
+    image: living-codex:stable
+    restart: unless-stopped
+    volumes:
+      - /mnt/hdd/codex_raw:/app/inputs  # Audio Source
+      - ./data:/app/data                # DB Location (NVMe)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+6.2 Maintenance Scripts (The Janitor)
+To prevent "Log Bloat" or "Stuck Files":
+Bash
+# /etc/cron.daily/codex_maintenance
+# 1. Rotate Logs
+docker compose logs --tail=100 > /var/log/codex.log
+
+
+# 2. Backup DB to Drive
+sqlite3 /app/data/codex.db ".backup /tmp/db_snap.sqlite"
+rclone copy /tmp/db_snap.sqlite gdrive:/Codex_Backups
+rm /tmp/db_snap.sqlite
+
+
+________________
+
+
+7. Final Verdict
+This architecture is Approved for Production.
+It solves the core tension of the project: running a complex AI application on a sensitive financial node. By strictly isolating Storage (HDD), Compute (Google Cloud), and State (NVMe), we ensure the Avalanche Validator remains performant while the GM enjoys a fully automated Intelligence Officer.
+
+
+
+
+[a]Does it need to be private?
+[b]We can build phase 1 with public knowledge only, gets system off the ground quickly and captures most of the benefit.
+
+
+However, if GM build is highly useful then building it now might be better, will burn test cycles but will require less rebuild in the future.
+
+
+Ryan, you are the decider. How helpful is something like this? Don't worry about cycles just honest appraisal.
+[c]Can also make this a report reviewed by everyone.
+[d]Another option, more complex so maybe phase 2, with voice training reports could be sent at the individual level.
+[e]Public versions exist, will likely fork rather than rebuild.
+[f]https://github.com/asacolips-projects/pbta
+[g]Push them on CoC
+[h]Bonds are important
+[i]Ryan, this line is for you
+[j]1 total reaction
+Brett Farmer reacted with 🤣 at 2026-02-07 17:15 PM
+[k]Not true, initial distillation is the full text. This wills cost ~$1 per session.
+[l]This is desirable
+[m]Yes, requires journal sync MCP, pretty sure this is already in a public git repo.
+[n]Creates a lot of GM overhead, will need to test.
+
+
+Seems easy to assume that all spoken context is public. So just use rules based on that.
+[o]Just use channels
+[p]Mandatory backup modules by play session.
+[q]Sounds like a player, will need to make sure final team disambiguates.
+[r]Using quotes is annoying, must make sure discord prompts are simple and not annoying.
+[s]Not sure if ephemeral, probably fine to share in general channel.
+
+
+Other option is for everyone to have their own channel. That would unlock some fun lore/character building possibilities in future iterations.
+[t]Much easier to manage via channels, more example of unnecessary discord complexity.
+[u]Unsure if helpful, Ryan wdyt?
+[v]Automated, no dragging and dropping.
+
+
+Also, privacy callout post session transcription mp3 is destroyed.
+[w]Prompt engineering required
+[x]Discord has 2000 char limit and might not be easy.
+
+
+Opt A (Rec'ed) - Use docs or markdown files, much easier to be specific. Pros: Highly accurate | Cons: GM overhead
+
+
+Opt B - Stays in discord GM (or everyone) can chat with notes to finalize them. Pros: Simple } Cons: Potential drift and annoying if you can't get something specific right.
+[y]Need a follow up command for, tell me more or give full history.
+[z]Make AI test this
+[aa]Will make AI battle test this. Key is keeping context windows clean, unsure how technically to do. AI should be able to handle and create unit tests.
+[ab]Probably too conservative
+[ac]All data is backup up in my google drive
+[ad]If this sucks in testing we will use Claude.
+
+
+We'll run this in shadow mode on the next session.
