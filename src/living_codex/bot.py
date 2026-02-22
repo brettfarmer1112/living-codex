@@ -24,7 +24,7 @@ class LivingCodex(commands.Bot):
         self.config = config
         self.codex_db = CodexDB(config.db_path)
 
-        self.claude_client = None   # ClaudeClient | None
+        self.ai_client = None       # GeminiProClient | ClaudeClient | None
         self.foundry_client = None  # FoundryClient | None
         self.push_manager = None    # PushManager | None
 
@@ -32,23 +32,12 @@ class LivingCodex(commands.Bot):
         await self.codex_db.connect()
         logger.info("Database connected.")
 
-        # Instantiate AI client for extraction/summarization/queries
-        if self.config.gemini_api_key:
-            from living_codex.ai.gemini_pro import GeminiProClient
-            self.claude_client = GeminiProClient(
-                api_key=self.config.gemini_api_key,
-                model=self.config.gemini_pro_model,
-            )
-            logger.info("Gemini Pro client initialized (model=%s).", self.config.gemini_pro_model)
-        elif self.config.anthropic_api_key:
-            from living_codex.ai.claude import ClaudeClient
-            self.claude_client = ClaudeClient(
-                api_key=self.config.anthropic_api_key,
-                model=self.config.anthropic_model,
-            )
-            logger.info("Claude client initialized (model=%s) — Anthropic fallback.", self.config.anthropic_model)
-        else:
-            logger.info("No AI API key set — /codex query and /codex lastsession disabled.")
+        # Instantiate AI client via router (model name prefix selects SDK)
+        from living_codex.ai.router import create_ai_client
+        try:
+            self.ai_client = create_ai_client(self.config.ai_model, self.config)
+        except ValueError as exc:
+            logger.warning("AI client disabled: %s", exc)
 
         # Instantiate Foundry client + push manager if configured
         if self.config.foundry_url and self.config.foundry_api_key:
@@ -78,7 +67,7 @@ class LivingCodex(commands.Bot):
         logger.info("Commands synced to guild %s.", self.config.discord_guild_id)
 
         # Start the Scribe audio watcher if Gemini (transcription) and AI client (extraction) are configured
-        if self.config.gemini_api_key and self.claude_client is not None:
+        if self.config.gemini_api_key and self.ai_client is not None:
             from living_codex.ai.gemini import GeminiClient
             from living_codex.scribe.watcher import AudioWatcher
 
@@ -87,7 +76,7 @@ class LivingCodex(commands.Bot):
                 input_dir=self.config.input_dir,
                 db=self.codex_db,
                 gemini=gemini,
-                claude=self.claude_client,
+                claude=self.ai_client,
                 campaign_id=self.config.default_campaign_id,
                 push_manager=self.push_manager,
             )

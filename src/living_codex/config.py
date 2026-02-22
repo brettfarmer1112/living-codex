@@ -21,16 +21,17 @@ class CodexConfig(BaseSettings):
     gm_channel_id: int
     player_channel_id: int
 
-    # Gemini
-    gemini_api_key: str = ""
-    gemini_pro_model: str = "gemini-2.5-flash-lite"
+    # AI model — change this one string to swap providers.
+    # "gemini-*" → uses CODEX_GEMINI_API_KEY
+    # "claude-*" → uses CODEX_ANTHROPIC_API_KEY (or CODEX_CLAUDE_API_KEY)
+    ai_model: str = "claude-haiku-4-5"
 
-    # Anthropic / Claude — fallback if Gemini key not set
+    # API keys — set whichever matches your ai_model prefix
+    gemini_api_key: str = ""
     anthropic_api_key: str = Field(
         default="",
         validation_alias=AliasChoices("CODEX_CLAUDE_API_KEY", "CODEX_ANTHROPIC_API_KEY"),
     )
-    anthropic_model: str = "claude-sonnet-4-6"
 
     # Database
     db_path: Path = Path("./data/codex.db")

@@ -188,10 +188,10 @@ class CodexCommands(commands.Cog):
             summary_text = session["summary"]
         else:
             # Generate summary on demand via Claude
-            claude = getattr(self.bot, "claude_client", None)
+            claude = getattr(self.bot, "ai_client", None)
             if claude is None:
                 await interaction.followup.send(
-                    "Anthropic API key not configured — cannot generate session summary."
+                    "AI client not configured — cannot generate session summary."
                 )
                 return
             if not session["transcript_text"]:
@@ -235,10 +235,10 @@ class CodexCommands(commands.Cog):
     async def query(self, interaction: discord.Interaction, question: str) -> None:
         await interaction.response.defer(ephemeral=True)
 
-        claude = getattr(self.bot, "claude_client", None)
+        claude = getattr(self.bot, "ai_client", None)
         if claude is None:
             await interaction.followup.send(
-                "Anthropic API key not configured — /codex query is unavailable.",
+                "AI client not configured — /codex query is unavailable.",
                 ephemeral=True,
             )
             return

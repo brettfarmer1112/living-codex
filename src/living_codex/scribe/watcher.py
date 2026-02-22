@@ -5,11 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from watchfiles import Change, awatch
 
-from living_codex.ai.claude import ClaudeClient
 from living_codex.ai.gemini import GeminiClient
 from living_codex.database import CodexDB
 from living_codex.scribe.pipeline import AUDIO_EXTENSIONS, ScribePipeline
@@ -31,7 +30,7 @@ class AudioWatcher:
         input_dir: Path,
         db: CodexDB,
         gemini: GeminiClient,
-        claude: ClaudeClient,
+        claude: Any,
         campaign_id: int,
         push_manager: "PushManager | None" = None,
     ):
