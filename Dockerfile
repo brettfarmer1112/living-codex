@@ -6,8 +6,9 @@ WORKDIR /app
 COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
-# Copy source
+# Copy source and scripts
 COPY src/ src/
+COPY scripts/ scripts/
 
 # Create data and inputs directories
 RUN mkdir -p /app/data /app/inputs
