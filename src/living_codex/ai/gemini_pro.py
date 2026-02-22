@@ -6,31 +6,17 @@ Replaces the Anthropic Claude client with the same public interface.
 
 import json
 import logging
-from pathlib import Path
 from typing import Any
 
 from google import genai
 from google.genai import types
 
+from living_codex.ai import load_system_prompt
 from living_codex.ai.prompts import EXTRACT_ENTITIES, QUERY_CODEX, SUMMARIZE_SESSION
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gemini-2.5-flash-lite"
-
-
-def _load_system_prompt() -> str:
-    """Load codex_rules.md as the system instruction for Gemini calls.
-
-    Re-read from disk on every call so edits take effect without a restart.
-    Falls back to an empty string if the file is missing.
-    """
-    rules_path = Path(__file__).parent / "codex_rules.md"
-    try:
-        return rules_path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        logger.warning("codex_rules.md not found — running without system prompt.")
-        return ""
 
 
 class GeminiProClient:
@@ -52,7 +38,7 @@ class GeminiProClient:
         kwargs: dict[str, Any] = dict(
             max_output_tokens=max_tokens,
         )
-        system_prompt = _load_system_prompt()
+        system_prompt = load_system_prompt()
         if system_prompt:
             kwargs["system_instruction"] = system_prompt
         kwargs.update(extra)

@@ -5,26 +5,13 @@ The Anthropic SDK is natively async — no thread executor required.
 
 import json
 import logging
-from pathlib import Path
 
 import anthropic
 
+from living_codex.ai import load_system_prompt
 from living_codex.ai.prompts import EXTRACT_ENTITIES, QUERY_CODEX, SUMMARIZE_SESSION
 
 logger = logging.getLogger(__name__)
-
-
-def _load_system_prompt() -> str:
-    """Load codex_rules.md as the system prompt for all Claude calls.
-
-    Falls back to an empty string if the file is missing.
-    """
-    rules_path = Path(__file__).parent / "codex_rules.md"
-    try:
-        return rules_path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        logger.warning("codex_rules.md not found — running without system prompt.")
-        return ""
 
 
 class ClaudeClient:
@@ -45,7 +32,7 @@ class ClaudeClient:
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        system_prompt = _load_system_prompt()
+        system_prompt = load_system_prompt()
         if system_prompt:
             kwargs["system"] = system_prompt
         return kwargs

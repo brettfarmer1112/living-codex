@@ -6,6 +6,7 @@ self.bot.codex_db without module-level globals or circular imports.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 
@@ -235,8 +236,8 @@ class CodexCommands(commands.Cog):
     async def query(self, interaction: discord.Interaction, question: str) -> None:
         await interaction.response.defer(ephemeral=True)
 
-        claude = getattr(self.bot, "ai_client", None)
-        if claude is None:
+        ai = getattr(self.bot, "ai_client", None)
+        if ai is None:
             await interaction.followup.send(
                 "AI client not configured — /codex query is unavailable.",
                 ephemeral=True,
@@ -246,31 +247,40 @@ class CodexCommands(commands.Cog):
         db = self.bot.codex_db  # type: ignore[attr-defined]
         campaign_id = self.bot.config.default_campaign_id  # type: ignore[attr-defined]
 
-        cursor = await db.db.execute(
-            "SELECT name FROM campaigns WHERE id = ?", (campaign_id,)
-        )
-        row = await cursor.fetchone()
-        campaign_name = row["name"] if row else "Unknown Campaign"
+        # Fire all DB reads concurrently — they're independent
+        async def _campaign_name() -> str:
+            cursor = await db.db.execute(
+                "SELECT name FROM campaigns WHERE id = ?", (campaign_id,)
+            )
+            row = await cursor.fetchone()
+            return row["name"] if row else "Unknown Campaign"
 
-        # Assemble all 5 context sections
-        entities_raw = await db.get_all_entities(campaign_id)
+        (
+            campaign_name,
+            entities_raw,
+            rels_raw,
+            summaries_raw,
+            lore_raw,
+            sessions_data,
+        ) = await asyncio.gather(
+            _campaign_name(),
+            db.get_all_entities(campaign_id),
+            db.get_all_relationships(campaign_id),
+            db.get_all_session_summaries(campaign_id),
+            db.get_all_lore_docs(campaign_id),
+            db.get_unsummarized_transcripts(campaign_id),
+        )
+
+        # Format context sections
         entities_text = _format_entities_for_context(
             [dict(e) for e in entities_raw]
         )
-
-        rels_raw = await db.get_all_relationships(campaign_id)
         rels_text = _format_relationships_for_context(rels_raw)
-
-        summaries_raw = await db.get_all_session_summaries(campaign_id)
         summaries_text = _format_summaries_for_context(summaries_raw)
-
-        lore_raw = await db.get_all_lore_docs(campaign_id)
         lore_text = _format_lore_for_context(lore_raw)
-
-        sessions_data = await db.get_all_transcripts(campaign_id)
         transcripts_text = _format_transcripts_for_context(sessions_data)
 
-        answer = await claude.query(
+        answer = await ai.query(
             question,
             campaign_name,
             entities=entities_text,

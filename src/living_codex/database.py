@@ -163,6 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_entity_events_session_id ON entity_events(session
 CREATE INDEX IF NOT EXISTS idx_players_campaign_id ON players(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_entity_id ON sync_queue(entity_id);
 CREATE INDEX IF NOT EXISTS idx_lore_docs_campaign_id ON lore_docs(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_campaign_id ON sessions(campaign_id);
 """
 
 EXPECTED_TABLES = {
@@ -193,6 +194,7 @@ EXPECTED_INDEXES = {
     "idx_players_campaign_id",
     "idx_sync_queue_entity_id",
     "idx_lore_docs_campaign_id",
+    "idx_sessions_campaign_id",
 }
 
 
@@ -427,6 +429,23 @@ class CodexDB:
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
+
+    async def get_unsummarized_transcripts(self, campaign_id: int) -> list[dict]:
+        """Return transcripts only for sessions that lack a summary.
+
+        Sessions with summaries are already captured by get_all_session_summaries(),
+        so including their raw transcript in the AI prompt is redundant and expensive.
+        """
+        cursor = await self.db.execute(
+            "SELECT session_number, transcript_text FROM sessions "
+            "WHERE campaign_id = ? AND transcript_text IS NOT NULL "
+            "AND (summary IS NULL OR summary = '') "
+            "ORDER BY session_number ASC",
+            (campaign_id,),
+        )
+        rows = await cursor.fetchall()
+        return [{"session_number": r["session_number"], "transcript_text": r["transcript_text"]}
+                for r in rows]
 
     async def get_all_session_summaries(self, campaign_id: int) -> list[dict]:
         """Return session_number + summary for all sessions that have summaries."""
