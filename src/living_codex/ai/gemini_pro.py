@@ -16,7 +16,7 @@ from living_codex.ai.prompts import EXTRACT_ENTITIES, QUERY_CODEX, SUMMARIZE_SES
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-2.5-flash-lite"
 
 
 def _load_system_prompt() -> str:

@@ -23,7 +23,7 @@ class CodexConfig(BaseSettings):
 
     # Gemini
     gemini_api_key: str = ""
-    gemini_pro_model: str = "gemini-2.5-flash"
+    gemini_pro_model: str = "gemini-2.5-flash-lite"
 
     # Anthropic / Claude — fallback if Gemini key not set
     anthropic_api_key: str = Field(
