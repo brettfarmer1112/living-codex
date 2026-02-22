@@ -1,0 +1,21 @@
+services:
+  codex:
+    build: .
+    container_name: living-codex
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - /mnt/mediadrive/codex_raw:/app/inputs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
