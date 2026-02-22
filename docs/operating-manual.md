@@ -277,7 +277,7 @@ The Scribe pipeline does NOT write directly to the entities table. Instead, all 
 
 ### Running Approval
 
-Currently a CLI script (Discord-based approval UI is planned for Phase 4):
+Currently a CLI script (Discord-based approval UI is planned for Phase 4). Run it from the project root or inside the container:
 
 ```bash
 # From project root
