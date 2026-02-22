@@ -33,17 +33,21 @@ class ClaudeClient:
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-6"):
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model = model
-        self._system_prompt = _load_system_prompt()
 
     def _call_kwargs(self, prompt: str, max_tokens: int) -> dict:
-        """Build the base kwargs dict for a messages.create call."""
+        """Build the base kwargs dict for a messages.create call.
+
+        Re-reads codex_rules.md from disk on every call so edits take
+        effect without restarting the bot.
+        """
         kwargs: dict = dict(
             model=self.model,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        if self._system_prompt:
-            kwargs["system"] = self._system_prompt
+        system_prompt = _load_system_prompt()
+        if system_prompt:
+            kwargs["system"] = system_prompt
         return kwargs
 
     async def extract_entities(

@@ -20,8 +20,9 @@ DEFAULT_MODEL = "gemini-3.1-pro-preview"
 
 
 def _load_system_prompt() -> str:
-    """Load codex_rules.md as the system instruction for all Gemini calls.
+    """Load codex_rules.md as the system instruction for Gemini calls.
 
+    Re-read from disk on every call so edits take effect without a restart.
     Falls back to an empty string if the file is missing.
     """
     rules_path = Path(__file__).parent / "codex_rules.md"
@@ -41,15 +42,19 @@ class GeminiProClient:
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL):
         self.client = genai.Client(api_key=api_key)
         self.model = model
-        self._system_prompt = _load_system_prompt()
 
     def _base_config(self, max_tokens: int, **extra: Any) -> types.GenerateContentConfig:
-        """Build a GenerateContentConfig with system instruction and token limit."""
+        """Build a GenerateContentConfig with system instruction and token limit.
+
+        Re-reads codex_rules.md from disk on every call so edits take
+        effect without restarting the bot.
+        """
         kwargs: dict[str, Any] = dict(
             max_output_tokens=max_tokens,
         )
-        if self._system_prompt:
-            kwargs["system_instruction"] = self._system_prompt
+        system_prompt = _load_system_prompt()
+        if system_prompt:
+            kwargs["system_instruction"] = system_prompt
         kwargs.update(extra)
         return types.GenerateContentConfig(**kwargs)
 
