@@ -1,5 +1,6 @@
 """Discord bot setup and Cog registration."""
 
+import asyncio
 import logging
 
 import discord
@@ -10,6 +11,8 @@ from living_codex.database import CodexDB
 
 logger = logging.getLogger(__name__)
 
+_QUEUE_DRAIN_INTERVAL = 300  # seconds between drain attempts
+
 
 class LivingCodex(commands.Bot):
     """The Living Codex Discord bot."""
@@ -19,20 +22,94 @@ class LivingCodex(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
         self.config = config
         self.codex_db = CodexDB(config.db_path)
+        self.claude_client = None   # ClaudeClient | None
+        self.foundry_client = None  # FoundryClient | None
+        self.push_manager = None    # PushManager | None
 
     async def setup_hook(self) -> None:
         await self.codex_db.connect()
+
+        # Instantiate AI client for extraction/summarization/queries
+        if self.config.gemini_api_key:
+            from living_codex.ai.gemini_pro import GeminiProClient
+            self.claude_client = GeminiProClient(
+                api_key=self.config.gemini_api_key,
+                model=self.config.gemini_pro_model,
+            )
+            logger.info("Gemini Pro client initialized (model=%s).", self.config.gemini_pro_model)
+        elif self.config.anthropic_api_key:
+            from living_codex.ai.claude import ClaudeClient
+            self.claude_client = ClaudeClient(
+                api_key=self.config.anthropic_api_key,
+                model=self.config.anthropic_model,
+            )
+            logger.info("Claude client initialized (model=%s) — Anthropic fallback.", self.config.anthropic_model)
+        else:
+            logger.info("No AI API key set — /codex query and /codex lastsession disabled.")
+
+        # Instantiate Foundry client + push manager if configured
+        if self.config.foundry_url and self.config.foundry_api_key:
+            from living_codex.sync.foundry import FoundryClient
+            from living_codex.sync.push import PushManager
+            self.foundry_client = FoundryClient(
+                base_url=self.config.foundry_url,
+                api_key=self.config.foundry_api_key,
+            )
+            self.push_manager = PushManager(self.codex_db, self.foundry_client)
+            self.loop.create_task(self._queue_drain_loop())
+            logger.info("Foundry client initialized (%s). Queue drain every %ds.",
+                        self.config.foundry_url, _QUEUE_DRAIN_INTERVAL)
+        else:
+            logger.info("Foundry URL/key not set — Foundry sync disabled.")
+
         from living_codex.commands.codex import CodexCommands
 
         await self.add_cog(CodexCommands(self))
         guild = discord.Object(id=self.config.discord_guild_id)
+        self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
         logger.info("Commands synced to guild %s.", self.config.discord_guild_id)
+
+        # Start the Scribe audio watcher if Gemini (transcription) and AI client (extraction) are configured
+        if self.config.gemini_api_key and self.claude_client is not None:
+            from living_codex.ai.gemini import GeminiClient
+            from living_codex.scribe.watcher import AudioWatcher
+
+            gemini = GeminiClient(self.config.gemini_api_key)
+            watcher = AudioWatcher(
+                input_dir=self.config.input_dir,
+                db=self.codex_db,
+                gemini=gemini,
+                claude=self.claude_client,
+                campaign_id=self.config.default_campaign_id,
+                push_manager=self.push_manager,
+            )
+            self.loop.create_task(watcher.watch())
+            logger.info("AudioWatcher started on %s.", self.config.input_dir)
+        elif self.config.gemini_api_key:
+            logger.info("Gemini key set but no AI client for extraction — Scribe pipeline disabled.")
+        else:
+            logger.info("Gemini API key not set — Scribe pipeline disabled.")
+
+    async def _queue_drain_loop(self) -> None:
+        """Background task: drain the sync queue every 5 minutes."""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            await asyncio.sleep(_QUEUE_DRAIN_INTERVAL)
+            if self.push_manager is not None:
+                try:
+                    succeeded, failed = await self.push_manager.drain_queue()
+                    if succeeded or failed:
+                        logger.info("Queue drain: %d synced, %d failed.", succeeded, failed)
+                except Exception as exc:
+                    logger.error("Queue drain error: %s", exc)
 
     async def on_ready(self) -> None:
         logger.info("Logged in as %s (ID: %s)", self.user, self.user.id)
 
     async def close(self) -> None:
+        if self.foundry_client is not None:
+            await self.foundry_client.close()
         await self.codex_db.close()
-        logger.info("Database closed.")
+        logger.info("Database and Foundry client closed.")
         await super().close()

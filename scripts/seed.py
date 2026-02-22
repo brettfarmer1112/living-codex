@@ -110,7 +110,7 @@ async def run() -> None:
                 "INSERT INTO aliases (alias, entity_id) VALUES (?, ?)",
                 (alias_text, entity_id),
             )
-            print(f"  INSERTED '{alias_text}' → {entity_name}")
+            print(f"  INSERTED '{alias_text}' -> {entity_name}")
 
     await db.db.commit()
 

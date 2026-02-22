@@ -7,7 +7,8 @@ The Living Codex is a Discord bot that acts as a "search engine for the fiction"
 **The repo is empty. This plan builds the MVP.**
 
 Two features are P0 (zero tolerance for failure):
-1. **Spoiler Shield** — players never see GM secrets
+
+1. **Spoiler Shield** — players never see GM secrets (Deferred to Phase 6)
 2. **Conflict Guard** — AI never overwrites GM's manual Foundry VTT edits
 
 Host constraint: runs on a live AVAX validator node. The Codex must be invisible to the validator — hard-capped at 0.5 vCPU / 512MB RAM via Docker, all AI offloaded to Gemini API.
@@ -44,17 +45,21 @@ living-codex/
 │   ├── models.py            # Pydantic models
 │   ├── search.py            # Fuzzy search (rapidfuzz)
 │   ├── formatter.py         # 3-Bullet Rule embed builder
-│   ├── permissions.py       # Two-layer access control (P0)
+
+│   ├── permissions.py       # Two-layer access control (Deferred Phase 6)
 │   ├── commands/
-│   │   ├── codex.py         # /codex check, /codex add
-│   │   └── admin.py         # /codex sync, /codex status, /codex resolve
+
+
+│   │   ├── codex.py         # /codex check
+│   │   └── admin.py         # /codex sync, /codex status, /codex ingest
 │   ├── ai/
 │   │   ├── gemini.py        # Gemini Flash/Pro (direct, no abstraction)
 │   │   └── prompts.py       # Transcription & extraction prompts
 │   ├── scribe/
 │   │   ├── pipeline.py      # Audio → transcript → extract → staged changes
 │   │   ├── watcher.py       # Craig folder detector + file watcher
-│   │   └── report.py        # Mission Report + Discord approval buttons
+
+│   │   └── report.py        # Mission Report + Discord approval buttons (Deferred Phase 6)
 │   └── sync/
 │       ├── foundry.py       # Foundry VTT REST client
 │       └── guard.py         # Conflict Guard (hash comparison) (P0)
@@ -112,20 +117,106 @@ living-codex/
 
 ## Phase 3: The Scribe Pipeline (Week 3)
 
-**Ship:** Audio in → entities extracted → staged changes in DB. No approval UI yet.
+
+**Ship:** Audio in → entities extracted → staged changes in DB.
 
 **Build:**
 - `ai/gemini.py` — Gemini Flash for transcription, Pro for extraction. **Critical:** use Gemini Files API (`upload_file`) for audio — FLAC files are 300-500MB each, never load into Python memory
 - `ai/prompts.py` — per-speaker transcription prompt (preferred, uses Craig filenames as speaker names), mixed-track fallback prompt, entity extraction prompt with public/private classification + PII redaction directive
 - `scribe/watcher.py` — watches `/inputs` for Craig recording folders. Multiple FLAC files = per-speaker mode; single file = mixed mode. Also accepts mp3/wav for manual uploads
 - `scribe/pipeline.py` — per-speaker mode: upload each FLAC individually to Gemini Flash with speaker name → merge transcripts → extract entities via Gemini Pro → write `staged_changes` table. Delete all audio after extraction (privacy requirement). Session-level attribution only
+- `commands/admin.py` — Add `/codex ingest` to bulk-promote `staged_changes` to `entities`. This acts as the temporary "Auto-Approve" mechanism until the GM UI is built in Phase 6.
 - `scripts/setup_rclone.sh` — cron job: `rclone move gdrive:/Craig /app/inputs/ --bwlimit 5M` every 10 min
 
-**Verify:** Craig FLAC folder → pipeline detects multi-track → staged_changes populated → audio deleted → RAM stays under cap.
+
+**Verify:** Craig FLAC folder → pipeline detects multi-track → staged_changes populated → `/codex ingest` works → audio deleted → RAM stays under cap.
 
 ---
 
-## Phase 4: GM Tools + Spoiler Shield (Week 4)
+
+## Phase 4: Foundry Sync + Conflict Guard (Week 4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+**Ship:** Foundry VTT sync with conflict detection. Alpha release.
+
+**Build:**
+- `sync/foundry.py` — httpx async client. Retry with backoff on 5xx (3 attempts). Offline detection → queue changes in `sync_queue` table → process queue when Foundry returns
+- `sync/guard.py` — **The P0 algorithm:**
+  1. Fetch journal from Foundry
+  2. SHA-256 hash current content
+  3. Compare with `entities.foundry_hash`
+  4. Match → update Foundry + update stored hash
+  5. Mismatch → **ABORT** + notify GM ("Conflict detected for [entity]. Manual edit found. Sync skipped.")
+  6. New entity → create journal entry
+
+- `commands/admin.py` — Update with `/codex sync`, `/codex status`, `/codex resolve [entity]`
+- Formatter update: add `[View in Foundry]` link when `foundry_id` exists
+
+
+**Verify (P0 — zero tolerance):**
+- Sync entity → journal created in Foundry
+- Manually edit journal → re-sync → "Conflict detected" message, Foundry content preserved
+- Foundry offline → `/codex check` still works from SQLite
+
+
+- Full end-to-end: audio → process → ingest → sync → Foundry journal created
+
+---
+
+
+## Phase 5: Deployment & Operations (Week 5)
+
+
+
+
+
+
+**Ship:** Production-ready container on Validator.
+
+
+
+**Build:**
+- **Pre-deploy Gate:** Verify validator health, rewarding stake, and resource headroom.
+- **Deployment:** `docker compose up -d` on the live node.
+- **Backups:** Configure daily SQLite backup to Google Drive via rclone (part of `setup_rclone.sh` or a new cron).
+- **Stress Test:** Verify 0.5 vCPU / 512MB RAM cap under load (50 queries/sec + active audio processing).
+
+
+
+
+**Verify:**
+- Bot stays online for 24h.
+- Backups appear in GDrive.
+- Validator performance metrics remain unaffected.
+- Kill switch (`docker compose down`) works instantly.
+
+
+---
+
+
+## Phase 6: GM Tools + Spoiler Shield (Deferred)
 
 **Ship:** Two-layer permissions. Mission Report with approve/reject. GM secrets visible only in GM channel.
 
@@ -148,76 +239,36 @@ living-codex/
 
 ---
 
-## Phase 5: Foundry Sync + Conflict Guard (Week 5)
-
-**Ship:** Foundry VTT sync with conflict detection. Alpha release.
-
-**Build:**
-- `sync/foundry.py` — httpx async client. Retry with backoff on 5xx (3 attempts). Offline detection → queue changes in `sync_queue` table → process queue when Foundry returns
-- `sync/guard.py` — **The P0 algorithm:**
-  1. Fetch journal from Foundry
-  2. SHA-256 hash current content
-  3. Compare with `entities.foundry_hash`
-  4. Match → update Foundry + update stored hash
-  5. Mismatch → **ABORT** + notify GM ("Conflict detected for [entity]. Manual edit found. Sync skipped.")
-  6. New entity → create journal entry
-- `commands/admin.py` — `/codex sync`, `/codex status`, `/codex resolve [entity]`
-- Formatter update: add `[View in Foundry]` link when `foundry_id` exists
-- Daily SQLite backup to Google Drive via rclone
-
-**Verify (P0 — zero tolerance):**
-- Sync entity → journal created in Foundry
-- Manually edit journal → re-sync → "Conflict detected" message, Foundry content preserved
-- Foundry offline → `/codex check` still works from SQLite
-- Full end-to-end: audio → process → approve → sync → Foundry journal created
-- Stress test: 50 queries/sec + audio pipeline → CPU ≤ 50%, RAM ≤ 512MB
-
----
-
-## Deployment
-
-**Pre-deploy gate (run before first `docker compose up`):**
-```bash
-# Validator healthy?
-curl -s -X POST --data '{"jsonrpc":"2.0","id":1,"method":"health.health"}' \
-  -H 'content-type:application/json' http://127.0.0.1:9650/ext/health | jq .result.healthy
-
-# Rewarding stake nominal?
-curl -s 'http://127.0.0.1:9090/api/v1/query?query=avalanche_network_node_uptime_rewarding_stake'
-
-# Resources have headroom?
-free -h && df -h /
-```
-
-**Deploy:** Build locally on Windows first (non-Docker) → SCP to validator at `~/living-codex/` → `docker compose up -d` → verify `/ping` + `docker stats` → monitor 1 hour.
-
-**Kill switch:** `docker compose down` — instant, zero residue. The Codex opens no inbound ports, adds no UFW rules, touches no validator files or services.
-
----
-
 ## Test Plan (Summary)
 
-~61 automated tests. One-third concentrated on the two P0 features.
+
+~61 automated tests.
 
 | File | Phase | Priority | Key Assertions |
 |------|-------|----------|----------------|
 | `test_database.py` | 1 | Medium | Schema, WAL, FK, indexes, constraints |
 | `test_search.py` | 2 | High | Exact/fuzzy/alias/ambiguous/noise thresholds |
 | `test_formatter.py` | 2 | Medium | 3-Bullet structure, <500 chars, clean truncation |
-| **`test_permissions.py`** | **4** | **P0** | **Player never sees private. GM sees private. Channel routing. Unknown defaults to private. Two-layer defense.** |
+
 | `test_pipeline.py` | 3 | Medium | Staged changes written, per-speaker mode, mixed fallback |
 | `test_gemini.py` | 3 | Medium | Files API used (not inline bytes), correct model selection |
-| **`test_guard.py`** | **5** | **P0** | **Hash match → sync. Hash mismatch → ABORT. Never overwrites. Offline → queued.** |
-| `test_report.py` | 4 | High | Approve writes, reject discards, survives restart |
 
-**Alpha exit criteria:** 100% pass on test_permissions + test_guard. Resource compliance under load. Full end-to-end path works.
+
+| **`test_guard.py`** | **4** | **P0** | **Hash match → sync. Hash mismatch → ABORT. Never overwrites. Offline → queued.** |
+| `test_permissions.py` | 6 | P0 | Player never sees private. GM sees private. Channel routing. |
+| `test_report.py` | 6 | High | Approve writes, reject discards, survives restart |
+
+
+**Alpha exit criteria:** 100% pass on test_guard. Resource compliance under load. Full end-to-end path works (Audio -> Ingest -> Foundry).
 
 ---
 
-## Deferred (Not MVP)
+
+## Deferred (Post-Phase 6)
 
 - Audit log table
 - Exception hierarchy (`errors.py`)
 - Network bandwidth limiting (infra, not app code)
 - Model splitting (`models.py` submodules)
-- Lore builder, character builder, GM asset assistant (future ideas from design doc)
+
+- Lore builder, character builder, GM asset assistant

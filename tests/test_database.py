@@ -75,7 +75,7 @@ def test_config_loads_from_env(monkeypatch):
     assert config.player_channel_id == 333
 
 
-def test_config_missing_required_field(monkeypatch):
+def test_config_missing_required_field(monkeypatch, tmp_path):
     # Clear any CODEX_ env vars that might exist
     for key in list(os.environ.keys()):
         if key.startswith("CODEX_"):
@@ -83,8 +83,9 @@ def test_config_missing_required_field(monkeypatch):
 
     from living_codex.config import CodexConfig
 
+    # Point env_file at a nonexistent path so the .env file isn't read either
     with pytest.raises(Exception):
-        CodexConfig()
+        CodexConfig(_env_file=str(tmp_path / "nonexistent.env"))
 
 
 # -- Campaign & entity helpers --
