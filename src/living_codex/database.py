@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS players (
     FOREIGN KEY(character_entity_id) REFERENCES entities(id)
 );
 
+
 -- Staged changes from Scribe pipeline (Phase 3+)
 CREATE TABLE IF NOT EXISTS staged_changes (
     id INTEGER PRIMARY KEY,

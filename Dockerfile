@@ -2,11 +2,13 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy source and install
+# Install deps first for layer caching
 COPY pyproject.toml .
+RUN pip install --no-cache-dir .
+
+# Copy source and scripts
 COPY src/ src/
 COPY scripts/ scripts/
-RUN pip install --no-cache-dir .
 
 # Create data and inputs directories
 RUN mkdir -p /app/data /app/inputs

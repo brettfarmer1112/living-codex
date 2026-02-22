@@ -1,9 +1,10 @@
-"""Discord bot setup and Cog registration."""
+"""Discord bot setup, Cog and command registration."""
 
 import asyncio
 import logging
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from living_codex.config import CodexConfig
@@ -22,12 +23,14 @@ class LivingCodex(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
         self.config = config
         self.codex_db = CodexDB(config.db_path)
+
         self.claude_client = None   # ClaudeClient | None
         self.foundry_client = None  # FoundryClient | None
         self.push_manager = None    # PushManager | None
 
     async def setup_hook(self) -> None:
         await self.codex_db.connect()
+        logger.info("Database connected.")
 
         # Instantiate AI client for extraction/summarization/queries
         if self.config.gemini_api_key:
@@ -65,7 +68,11 @@ class LivingCodex(commands.Bot):
         from living_codex.commands.codex import CodexCommands
 
         await self.add_cog(CodexCommands(self))
+
+        # Register the simple app command group used by some integrations
         guild = discord.Object(id=self.config.discord_guild_id)
+        self.tree.add_command(codex_group, guild=guild)
+        # Copy any global commands (from cogs) to guild and sync
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
         logger.info("Commands synced to guild %s.", self.config.discord_guild_id)
@@ -113,3 +120,16 @@ class LivingCodex(commands.Bot):
         await self.codex_db.close()
         logger.info("Database and Foundry client closed.")
         await super().close()
+
+
+# -- Slash command group: /codex --
+
+codex_group = app_commands.Group(name="codex", description="The Living Codex commands")
+
+
+@codex_group.command(name="ping", description="Check if the Codex is alive")
+async def ping(interaction: discord.Interaction) -> None:
+    latency_ms = round(interaction.client.latency * 1000)
+    await interaction.response.send_message(
+        f"Pong! Latency: {latency_ms}ms", ephemeral=True
+    )
