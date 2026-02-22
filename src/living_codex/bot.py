@@ -1,9 +1,8 @@
-"""Discord bot setup and command registration."""
+"""Discord bot setup and Cog registration."""
 
 import logging
 
 import discord
-from discord import app_commands
 from discord.ext import commands
 
 from living_codex.config import CodexConfig
@@ -23,11 +22,10 @@ class LivingCodex(commands.Bot):
 
     async def setup_hook(self) -> None:
         await self.codex_db.connect()
-        logger.info("Database connected.")
+        from living_codex.commands.codex import CodexCommands
 
-        # Register commands to the configured guild for instant sync
+        await self.add_cog(CodexCommands(self))
         guild = discord.Object(id=self.config.discord_guild_id)
-        self.tree.add_command(codex_group, guild=guild)
         await self.tree.sync(guild=guild)
         logger.info("Commands synced to guild %s.", self.config.discord_guild_id)
 
@@ -38,16 +36,3 @@ class LivingCodex(commands.Bot):
         await self.codex_db.close()
         logger.info("Database closed.")
         await super().close()
-
-
-# -- Slash command group: /codex --
-
-codex_group = app_commands.Group(name="codex", description="The Living Codex commands")
-
-
-@codex_group.command(name="ping", description="Check if the Codex is alive")
-async def ping(interaction: discord.Interaction) -> None:
-    latency_ms = round(interaction.client.latency * 1000)
-    await interaction.response.send_message(
-        f"Pong! Latency: {latency_ms}ms", ephemeral=True
-    )
