@@ -112,7 +112,7 @@ class GeminiProClient:
         )
         logger.info("Gemini Pro: answering query (model=%s, question=%r)", self.model, question[:80])
 
-        config = self._base_config(4096)
+        config = self._base_config(1500)
         response = await self.client.aio.models.generate_content(
             model=self.model,
             contents=prompt,

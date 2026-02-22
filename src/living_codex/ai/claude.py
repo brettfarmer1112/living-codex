@@ -101,5 +101,5 @@ class ClaudeClient:
         )
         logger.info("Claude: answering query (model=%s, question=%r)", self.model, question[:80])
 
-        message = await self.client.messages.create(**self._call_kwargs(prompt, 4096))
+        message = await self.client.messages.create(**self._call_kwargs(prompt, 1500))
         return message.content[0].text.strip()

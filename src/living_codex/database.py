@@ -440,7 +440,7 @@ class CodexDB:
             "SELECT session_number, transcript_text FROM sessions "
             "WHERE campaign_id = ? AND transcript_text IS NOT NULL "
             "AND (summary IS NULL OR summary = '') "
-            "ORDER BY session_number ASC",
+            "ORDER BY session_number DESC",
             (campaign_id,),
         )
         rows = await cursor.fetchall()
@@ -452,7 +452,7 @@ class CodexDB:
         cursor = await self.db.execute(
             "SELECT session_number, summary FROM sessions "
             "WHERE campaign_id = ? AND summary IS NOT NULL "
-            "ORDER BY session_number ASC",
+            "ORDER BY session_number DESC",
             (campaign_id,),
         )
         rows = await cursor.fetchall()

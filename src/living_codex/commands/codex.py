@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import time
 
 import discord
 from discord import app_commands
@@ -23,7 +24,9 @@ from living_codex.formatter import (
 from living_codex.search import search
 
 _MAX_UPLOAD_BYTES = 1_000_000  # 1 MB lore doc limit
-_TRANSCRIPT_CHAR_BUDGET = 80_000  # Max chars for raw transcripts in query context
+_TRANSCRIPT_CHAR_BUDGET = 60_000  # Max chars for raw transcripts in query context
+_LORE_CHAR_BUDGET = 60_000       # Max chars for lore docs in query context
+_SUMMARY_CHAR_BUDGET = 60_000    # Max chars for session summaries in query context
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +36,17 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 
 def _format_entities_for_context(entities: list) -> str:
-    """Format entity rows into compact LLM-readable profiles."""
+    """Format entity rows into compact single-line profiles."""
     if not entities:
         return ""
     lines = []
     for e in entities:
-        status = f" [{e.get('status_label', 'Unknown')}]" if e.get("status_label") else ""
-        header = f"- {e['name']} ({e.get('type', '?')}){status}"
+        status = e.get("status_label", "Unknown") or "Unknown"
         desc = e.get("description_public") or e.get("description_private") or ""
+        line = f"{e['name']} | {e.get('type', '?')} | {status}"
         if desc:
-            header += f"\n  {desc}"
-        lines.append(header)
+            line += f" — {desc}"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -53,30 +56,49 @@ def _format_relationships_for_context(rels: list[dict]) -> str:
         return ""
     lines = []
     for r in rels:
-        line = f"- {r['source_name']} -[{r['rel_type']}]-> {r['target_name']}"
+        line = f"{r['source_name']} \u2192 {r['rel_type']} \u2192 {r['target_name']}"
         if r.get("citation"):
-            line += f" ({r['citation']})"
+            # Compact citation: "Session 2, [01:17]" → "[S2, 01:17]"
+            cite = r["citation"]
+            cite = cite.replace("Session ", "S").replace("[", "").replace("]", "")
+            line += f" [{cite}]"
         lines.append(line)
     return "\n".join(lines)
 
 
 def _format_summaries_for_context(summaries: list[dict]) -> str:
-    """Format session summaries with session headers."""
+    """Format session summaries with session headers, truncating to budget."""
     if not summaries:
         return ""
     parts = []
+    total = 0
     for s in summaries:
-        parts.append(f"=== Session {s['session_number']} ===\n{s['summary']}")
+        entry = f"=== Session {s['session_number']} ===\n{s['summary']}"
+        if total + len(entry) > _SUMMARY_CHAR_BUDGET:
+            remaining = _SUMMARY_CHAR_BUDGET - total
+            if remaining > 100:
+                parts.append(entry[:remaining] + "\u2026[truncated]")
+            break
+        parts.append(entry)
+        total += len(entry)
     return "\n\n".join(parts)
 
 
 def _format_lore_for_context(lore_docs: list[dict]) -> str:
-    """Format lore documents with title headers."""
+    """Format lore documents with title headers, truncating to budget."""
     if not lore_docs:
         return ""
     parts = []
+    total = 0
     for doc in lore_docs:
-        parts.append(f"--- {doc['title']} ---\n{doc['content']}")
+        entry = f"--- {doc['title']} ---\n{doc['content']}"
+        if total + len(entry) > _LORE_CHAR_BUDGET:
+            remaining = _LORE_CHAR_BUDGET - total
+            if remaining > 100:
+                parts.append(entry[:remaining] + "\u2026[truncated]")
+            break
+        parts.append(entry)
+        total += len(entry)
     return "\n\n".join(parts)
 
 
@@ -247,6 +269,8 @@ class CodexCommands(commands.Cog):
         db = self.bot.codex_db  # type: ignore[attr-defined]
         campaign_id = self.bot.config.default_campaign_id  # type: ignore[attr-defined]
 
+        t0 = time.monotonic()
+
         # Fire all DB reads concurrently — they're independent
         async def _campaign_name() -> str:
             cursor = await db.db.execute(
@@ -271,6 +295,8 @@ class CodexCommands(commands.Cog):
             db.get_unsummarized_transcripts(campaign_id),
         )
 
+        t1 = time.monotonic()
+
         # Format context sections
         entities_text = _format_entities_for_context(
             [dict(e) for e in entities_raw]
@@ -280,6 +306,8 @@ class CodexCommands(commands.Cog):
         lore_text = _format_lore_for_context(lore_raw)
         transcripts_text = _format_transcripts_for_context(sessions_data)
 
+        t2 = time.monotonic()
+
         answer = await ai.query(
             question,
             campaign_name,
@@ -288,6 +316,16 @@ class CodexCommands(commands.Cog):
             summaries=summaries_text,
             lore_docs=lore_text,
             transcripts=transcripts_text,
+        )
+
+        t3 = time.monotonic()
+        prompt_size = (
+            len(entities_text) + len(rels_text) + len(summaries_text)
+            + len(lore_text) + len(transcripts_text)
+        )
+        logger.info(
+            "Query timing: db=%.1fs fmt=%.1fs ai=%.1fs total=%.1fs prompt=%d chars",
+            t1 - t0, t2 - t1, t3 - t2, t3 - t0, prompt_size,
         )
 
         await _send_long_response(

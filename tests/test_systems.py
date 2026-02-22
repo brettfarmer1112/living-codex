@@ -310,15 +310,15 @@ class TestQueryContextAssembly:
         text = _format_entities_for_context([dict(e) for e in entities])
 
         for etype in ("NPC", "PC", "Faction", "Location", "Asset", "Clue"):
-            assert f"({etype})" in text, f"Missing entity type: {etype}"
+            assert f"| {etype} |" in text, f"Missing entity type: {etype}"
 
     @pytest.mark.asyncio
     async def test_dead_entities_show_status(self, campaign_db):
         """Dead/Destroyed entities must show status so the AI knows they're gone."""
         entities = await campaign_db.get_all_entities(1)
         text = _format_entities_for_context([dict(e) for e in entities])
-        assert "[Dead]" in text
-        assert "[Destroyed]" in text
+        assert "| Dead" in text
+        assert "| Destroyed" in text
 
     @pytest.mark.asyncio
     async def test_relationships_form_graph(self, campaign_db):
@@ -326,13 +326,13 @@ class TestQueryContextAssembly:
         rels = await campaign_db.get_all_relationships(1)
         text = _format_relationships_for_context(rels)
 
-        assert "Baron Vrax -[Rival]-> Baroness Kora" in text
-        assert "Baron Vrax -[Funds]-> The Remnant" in text
-        assert "Baroness Kora -[Serves]-> The Authority" in text
+        assert "Baron Vrax \u2192 Rival \u2192 Baroness Kora" in text
+        assert "Baron Vrax \u2192 Funds \u2192 The Remnant" in text
+        assert "Baroness Kora \u2192 Serves \u2192 The Authority" in text
 
     @pytest.mark.asyncio
-    async def test_summaries_ordered_chronologically(self, campaign_db):
-        """Session summaries must appear in order — narrative coherence depends on it."""
+    async def test_summaries_ordered_newest_first(self, campaign_db):
+        """Session summaries appear newest-first so recent sessions survive truncation."""
         summaries = await campaign_db.get_all_session_summaries(1)
         text = _format_summaries_for_context(summaries)
 
@@ -341,10 +341,10 @@ class TestQueryContextAssembly:
         assert "=== Session 8 ===" in text
         assert "=== Session 9 ===" not in text
 
-        # Order check: session 1 appears before session 8
+        # Order check: session 8 appears before session 1 (newest first)
         pos_1 = text.index("Session 1")
         pos_8 = text.index("Session 8")
-        assert pos_1 < pos_8
+        assert pos_8 < pos_1
 
     @pytest.mark.asyncio
     async def test_lore_docs_all_present(self, campaign_db):

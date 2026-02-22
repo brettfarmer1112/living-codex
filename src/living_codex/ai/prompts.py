@@ -100,12 +100,12 @@ ENTITY PROFILES:
 RELATIONSHIP MAP:
 {relationships}
 
-SESSION SUMMARIES:
-{summaries}
+SESSION TRANSCRIPTS:
+{transcripts}
 
 LORE DOCUMENTS:
 {lore_docs}
 
-SESSION TRANSCRIPTS:
-{transcripts}
+SESSION SUMMARIES:
+{summaries}
 """

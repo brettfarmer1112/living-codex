@@ -22,9 +22,9 @@ def test_format_entities_basic():
          "description_public": ""},
     ]
     result = _format_entities_for_context(entities)
-    assert "Baron Vrax (NPC) [Active]" in result
+    assert "Baron Vrax | NPC | Active" in result
     assert "A ruthless baron." in result
-    assert "The Green Box (Location)" in result
+    assert "The Green Box | Location | Unknown" in result
 
 
 def test_format_relationships_empty():
@@ -37,7 +37,7 @@ def test_format_relationships():
          "rel_type": "Rival", "citation": "Session 4"},
     ]
     result = _format_relationships_for_context(rels)
-    assert "Baron Vrax -[Rival]-> Baroness Kora (Session 4)" in result
+    assert "Baron Vrax \u2192 Rival \u2192 Baroness Kora [S4]" in result
 
 
 def test_transcripts_truncation():
